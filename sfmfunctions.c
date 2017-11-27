@@ -21,6 +21,16 @@ inline struct string new_string(uint32_t initial_size)
 	return (struct string){ .data = malloc(initial_size), .length = 0, .capacity = initial_size };
 }
 
+inline struct linked_list* new_linked_list(void)
+{
+	struct linked_list* returned_linked_list;
+	returned_linked_list = malloc(sizeof(*returned_linked_list));
+	returned_linked_list->data = NULL;
+	returned_linked_list->next = NULL;
+	pthread_mutex_init(&(returned_linked_list->mutex), NULL);
+	return returned_linked_list;
+}
+
 inline void convert_string(struct string* source)		//write length in reversed endianess in the first two bytes
 {
 	uint32_t length = source->length;

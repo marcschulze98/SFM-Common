@@ -48,6 +48,7 @@ void swap_endianess_16(uint16_t * byte);
 void destroy_linked_list(struct linked_list* currentitem);
 void convert_string(struct string* source);
 struct string new_string(uint32_t initial_size);
+struct linked_list* new_linked_list(void);
 struct return_info send_string(const struct string* message, int socket_fd);
 bool valid_message_format(const struct string* message, bool is_extended_format);
 struct return_info realloc_read(struct string* target, unsigned short bytes_to_read, int socket_fd, uint32_t offset);

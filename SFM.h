@@ -19,6 +19,7 @@
 #include <stdatomic.h>
 #include <math.h>
 #include <time.h>
+#include <inttypes.h>
 
 struct string
 {
@@ -42,7 +43,8 @@ struct return_info
 	int return_code;
 };
 
-void realloc_write(struct string* target, char c, uint32_t offset);
+void realloc_write(struct string* target, char c, uint32_t position);
+void string_append(struct string* target, char* source);
 void reset_string(struct string* stringbuffer, uint32_t buffer_size);
 void printBits(size_t size, void* ptr);
 void adjust_string_size(struct string* target ,uint32_t size);
@@ -52,7 +54,7 @@ void dynamic_array_push(struct dynamic_array* array, void* item);
 void dynamic_array_adjust(struct dynamic_array* array, size_t size);
 void dynamic_array_remove(struct dynamic_array* array, size_t position);
 void destroy_dynamic_array(struct dynamic_array* array);
-void* dynamic_array_at(struct dynamic_array* array, size_t position);
+void* dynamic_array_at(const struct dynamic_array* array, size_t position);
 struct string new_string(uint32_t initial_size);
 struct dynamic_array* new_dynamic_array(void);
 struct return_info send_string(const struct string* message, int socket_fd);

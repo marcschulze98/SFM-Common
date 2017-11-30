@@ -7,7 +7,7 @@ inline void realloc_write(struct string* target, char c, uint32_t offset)	//writ
 	target->data[offset] = c;
 }
 
-inline void reset_string(struct string* stringbuffer, uint32_t buffer_size) //reset buffer to buffer_size
+inline void reset_string(struct string* stringbuffer, uint32_t buffer_size) //reset stringbuffer to buffer_size
 {
 	stringbuffer->length = 0;
 	if(stringbuffer->capacity != buffer_size)
@@ -16,25 +16,16 @@ inline void reset_string(struct string* stringbuffer, uint32_t buffer_size) //re
 		stringbuffer->capacity = buffer_size;
 	}
 }
-inline struct string new_string(uint32_t initial_size)
+
+inline struct string new_string(uint32_t initial_size) //creates a new string pointer
 {
 	return (struct string){ .data = malloc(initial_size), .length = 0, .capacity = initial_size };
-}
-
-inline struct linked_list* new_linked_list(void)
-{
-	struct linked_list* returned_linked_list;
-	returned_linked_list = malloc(sizeof(*returned_linked_list));
-	returned_linked_list->data = NULL;
-	returned_linked_list->next = NULL;
-	pthread_mutex_init(&(returned_linked_list->mutex), NULL);
-	return returned_linked_list;
 }
 
 inline void convert_string(struct string* source)		//write length in reversed endianess in the first two bytes
 {
 	uint32_t length = source->length;
-	adjust_string_size(source, length+2u);
+	adjust_string_size(source, length+2);
 	char* tmp = malloc(length);
 
 	memcpy(tmp, source->data, length);
@@ -75,11 +66,10 @@ inline void printBits(size_t size, void* ptr)	//only for debugging
 inline struct return_info get_message(struct string* message, int socket_fd) //read the first two bytes for length of incoming string, then run realloc_read to read that amount, return false if nothing read
 {
 	struct pollfd socket_ready = { .fd = socket_fd, .events = POLLIN, .revents = 0};
+	struct return_info returning = { .error_occured = false, .error_code = 0, .return_code = false};
 	uint16_t bytes_to_read = 0;
 	uint32_t offset = 0;
 	message->length = 0;
-	
-	struct return_info returning = { .error_occured = false, .error_code = 0, .return_code = false};
 	
 	while(poll(&socket_ready, 1, POLL_TIMEOUT)) //poll socket input and check for interrupt
 	{
@@ -93,7 +83,7 @@ inline struct return_info get_message(struct string* message, int socket_fd) //r
 				returning.error_code = errno;
 			}
 			returning.error_occured = true;
-			returning.error_code = -1;
+			returning.error_code = -1; //indicate wrong amount read
 		}
 
 		if(!IS_BIG_ENDIAN)
@@ -104,12 +94,26 @@ inline struct return_info get_message(struct string* message, int socket_fd) //r
 		if(bytes_to_read == 0)
 		{
 			returning.error_occured = true;
-			returning.error_code = -2;
+			returning.error_code = -2; //indicate missing following message
 		}
 		struct return_info realloc_read_return = realloc_read(message, bytes_to_read, socket_fd, offset);
+		
+		if(realloc_read_return.error_occured)
+		{
+			returning.error_occured = true;
+			returning.error_code = realloc_read_return.error_code;
+			break;
+		}
+		
 		if(realloc_read_return.return_code)	//message.data is a null terminated string / if realloc_read returns true, then message continues
 		{
 			offset += (uint16_t)(bytes_to_read-2);
+			if(offset > MAX_WRITE_SIZE)
+			{
+				returning.error_occured = true;
+				returning.error_code = -3; //indicate message too long
+				break;
+			}
 			continue;
 		} else {
 			break;
@@ -118,8 +122,9 @@ inline struct return_info get_message(struct string* message, int socket_fd) //r
 	return returning;
 }
 
-inline struct return_info realloc_read(struct string* target, unsigned short bytes_to_read, int socket_fd, uint32_t offset) 	//if buffer is too small to hold bytes_to_read then double
-{																				//the space until space is big enough, null terminate the string
+inline struct return_info realloc_read(struct string* target, unsigned short bytes_to_read, int socket_fd, uint32_t offset)
+{
+	//read message into buffer, return true if message continues
 	long bytes_read = 0;
 	struct return_info returning = { .error_occured = false, .error_code = 0, .return_code = false};
 	
@@ -131,11 +136,11 @@ inline struct return_info realloc_read(struct string* target, unsigned short byt
 		returning.error_code = errno;	
 	} else if(bytes_read != bytes_to_read) {
 		returning.error_occured = true;
-		returning.error_code = -1;
+		returning.error_code = -1;  //indicate wrong amount read
 	}
 
 	target->length += (unsigned short)bytes_read;
-	target->data[bytes_read-1] = '\0';  //last char has to be nul
+	target->data[bytes_read-1] = '\0';  //last char has to be nul anyways
 	
 	if(bytes_read > 1)
 	{
@@ -153,7 +158,7 @@ inline void swap_endianess_16(uint16_t * byte) //swap 16 bytes in endianess
 
 inline void adjust_string_size(struct string* target ,uint32_t size) //resizes a string to fit the size
 {
-	while(size > target->capacity)
+	while(target->capacity < size)
 	{
 		if(target->capacity == 0)
 		{
@@ -161,8 +166,8 @@ inline void adjust_string_size(struct string* target ,uint32_t size) //resizes a
 		}
 		if((uint32_t)(target->capacity * 2) < target->capacity)
 		{
-			target->data = realloc(target->data, UINT32_MAX);
-			target->capacity = UINT32_MAX;
+			target->data = realloc(target->data, INT32_MAX);
+			target->capacity = INT32_MAX;
 		} else {
 			target->data = realloc(target->data, target->capacity * 2);
 			target->capacity = target->capacity * 2;
@@ -174,7 +179,7 @@ inline struct return_info send_string(const struct string* message, int socket_f
 {
 	struct return_info returning = { .error_occured = false, .error_code = 0, .return_code = false};
 	
-	if(write(socket_fd, message->data, message->length) != message->length) //strlen has to count from offset, then +offset+1 to account for the offset and NUL
+	if(write(socket_fd, message->data, message->length) != (ssize_t)message->length)
 	{
 		returning.error_occured = true;
 		returning.error_code = errno;
@@ -183,11 +188,8 @@ inline struct return_info send_string(const struct string* message, int socket_f
 	return returning;
 }
 
-inline bool valid_message_format(const struct string* message, bool is_extended_format) //checks if message has a valid format
+inline bool valid_message_format(const struct string* message, bool is_extended_format) //checks if message has a valid format TODO: optimize
 {
-	bool source_server_found = false;
-	bool source_user_found = false;
-	bool timestamp_found = false;
 	bool target_server_found = false;
 	bool target_user_found = false;
 	
@@ -198,6 +200,9 @@ inline bool valid_message_format(const struct string* message, bool is_extended_
 
 	if(is_extended_format)
 	{
+		bool source_server_found = false;
+		bool source_user_found = false;
+		bool timestamp_found = false;
 		for(uint32_t i = 0; i < message->length; i++)
 		{
 			if(message->data[i] == '@')
@@ -252,14 +257,68 @@ inline bool valid_message_format(const struct string* message, bool is_extended_
 	}
 }
 
-inline void destroy_linked_list(struct linked_list* currentitem) //frees the linked list completely
+inline void dynamic_array_push(struct dynamic_array* array, void* item) //puts item at end of array
 {
-	struct linked_list tmp;
-	while(currentitem != NULL)
+	dynamic_array_adjust(array, array->length+1);
+	array->data[array->length] = item;
+	array->length++;
+}
+
+inline void dynamic_array_adjust(struct dynamic_array* array, size_t size) //expands or shrinks array
+{
+	while(array->capacity < size)
 	{
-		tmp = *currentitem;
-		free(currentitem->data);
-		free(currentitem);
-		currentitem = tmp.next;
+		array->capacity *= 2;
+		array->data = realloc(array->data, array->capacity);
+	}
+	while(array->capacity > size*2)
+	{
+		array->capacity /= 2;
+		array->data = realloc(array->data, array->capacity);
+	}
+}
+
+inline void* dynamic_array_at(struct dynamic_array* array, size_t position) //returns pointer at position or NULL
+{
+	if(position >= array->length)
+	{
+		return NULL;
+	} else {
+		return array->data[position];
+	}
+}
+
+inline void dynamic_array_remove(struct dynamic_array* array, size_t position) //remove pointer at position and fill missing spot
+{
+	if(position < array->length)
+	{
+		free(array->data[position]);
+		memmove(array->data+position, array->data+position+1, array->length-position);
+		array->length--;
+	}
+}
+
+inline struct dynamic_array* new_dynamic_array(void) //creates new array with inital capacity of 4
+{
+	struct dynamic_array* array = malloc(sizeof(*array));
+	pthread_mutex_init(&array->mutex, NULL);
+	array->data = malloc(sizeof(void*)*4u);
+	array->length = 0;
+	array->capacity = 4;
+	
+	return array;
+}
+
+inline void destroy_dynamic_array(struct dynamic_array* array) //frees all pointers in the array and the array itself
+{
+	if(array != NULL)
+	{
+		for(size_t i = 0; i < array->length; i++)
+		{
+			free(array->data[i]);
+		}
+		free(array->data);
+		pthread_mutex_destroy(&array->mutex);
+		free(array);
 	}
 }

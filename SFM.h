@@ -20,6 +20,7 @@
 #include <math.h>
 #include <time.h>
 #include <inttypes.h>
+#include <assert.h>
 
 struct string
 {
@@ -45,6 +46,7 @@ struct return_info
 
 void realloc_write(struct string* target, char c, uint32_t position);
 void string_append(struct string* target, char* source);
+void string_copy(struct string* target, struct string* source);
 void reset_string(struct string* stringbuffer, uint32_t buffer_size);
 void printBits(size_t size, void* ptr);
 void adjust_string_size(struct string* target ,uint32_t size);

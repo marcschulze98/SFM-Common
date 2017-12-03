@@ -15,6 +15,13 @@ inline void string_append(struct string* target, char* source)	//appends source 
 	target->length += length;
 }
 
+inline void string_copy(struct string* target, struct string* source)	//appends source to
+{
+	memcpy(target, source, sizeof(*target));
+	target->data = malloc(target->length);
+	memcpy(target->data, source->data, target->length);
+}
+
 inline void reset_string(struct string* stringbuffer, uint32_t buffer_size) //reset stringbuffer to buffer_size
 {
 	stringbuffer->length = 0;
@@ -103,6 +110,7 @@ inline struct return_info get_message(struct string* message, int socket_fd) //r
 		{
 			returning.error_occured = true;
 			returning.error_code = -2; //indicate missing following message
+			break;
 		}
 		struct return_info realloc_read_return = realloc_read(message, bytes_to_read, socket_fd, offset);
 
@@ -309,7 +317,7 @@ inline void dynamic_array_remove(struct dynamic_array* array, size_t position) /
 inline struct dynamic_array* new_dynamic_array(void) //creates new array with inital capacity of 4
 {
 	struct dynamic_array* array = malloc(sizeof(*array));
-	pthread_mutex_init(&array->mutex, NULL);
+	assert(pthread_mutex_init(&array->mutex, NULL) == 0);
 	array->data = malloc(sizeof(*array->data)*4u);
 	array->length = 0;
 	array->capacity = 4;

@@ -1,7 +1,7 @@
 #include "SFM.h"
 
 
-yvoid realloc_write(struct string* target, char c, uint32_t position)	//write char into target->data, increase buffer-size if necessary
+void realloc_write(struct string* target, char c, uint32_t position)	//write char into target->data, increase buffer-size if necessary
 {
 	adjust_string_size(target, position);
 	target->data[position] = c;

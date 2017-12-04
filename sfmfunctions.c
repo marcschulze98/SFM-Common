@@ -309,7 +309,7 @@ inline void dynamic_array_remove(struct dynamic_array* array, size_t position) /
 	if(position < array->length)
 	{
 		free(array->data[position]);
-		memmove(array->data+position, array->data+position+1, array->length-position);
+		memmove(array->data+position, array->data+position+1, (array->length-position-1)*sizeof(*array->data));
 		array->length--;
 	}
 }

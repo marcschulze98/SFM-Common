@@ -1,13 +1,13 @@
 #include "SFM.h"
 
 
-inline void realloc_write(struct string* target, char c, uint32_t position)	//write char into target->data, increase buffer-size if necessary
+void realloc_write(struct string* target, char c, uint32_t position)	//write char into target->data, increase buffer-size if necessary
 {
 	adjust_string_size(target, position);
 	target->data[position] = c;
 }
 
-inline void string_append(struct string* target, char* source)	//appends source to
+void string_append(struct string* target, char* source)	//appends source to
 {
 	uint32_t length = (uint32_t)strlen(source);
 	adjust_string_size(target, target->length+length);
@@ -15,14 +15,14 @@ inline void string_append(struct string* target, char* source)	//appends source 
 	target->length += length;
 }
 
-inline void string_copy(struct string* target, struct string* source)	//appends source to
+void string_copy(struct string* target, struct string* source)	//appends source to
 {
 	memcpy(target, source, sizeof(*target));
 	target->data = malloc(target->length);
 	memcpy(target->data, source->data, target->length);
 }
 
-inline void reset_string(struct string* stringbuffer, uint32_t buffer_size) //reset stringbuffer to buffer_size
+void reset_string(struct string* stringbuffer, uint32_t buffer_size) //reset stringbuffer to buffer_size
 {
 	stringbuffer->length = 0;
 	if(stringbuffer->capacity != buffer_size)
@@ -32,12 +32,12 @@ inline void reset_string(struct string* stringbuffer, uint32_t buffer_size) //re
 	}
 }
 
-inline struct string new_string(uint32_t initial_size) //creates a new string pointer
+struct string new_string(uint32_t initial_size) //creates a new string pointer
 {
 	return (struct string){ .data = malloc(initial_size), .length = 0, .capacity = initial_size };
 }
 
-inline void convert_string(struct string* source)		//write length in reversed endianess in the first two bytes
+void convert_string(struct string* source)		//write length in reversed endianess in the first two bytes
 {
 	uint32_t length = source->length;
 	adjust_string_size(source, length+2);
@@ -59,7 +59,7 @@ inline void convert_string(struct string* source)		//write length in reversed en
 	source->length += 2;
 }
 
-inline void printBits(size_t size, void* ptr)	//only for debugging
+void printBits(size_t size, void* ptr)	//only for debugging
 {
     unsigned char *b = (unsigned char*) ptr;
     unsigned char byte;
@@ -78,7 +78,7 @@ inline void printBits(size_t size, void* ptr)	//only for debugging
     puts("");
 }
 
-inline struct return_info get_message(struct string* message, int socket_fd) //read the first two bytes for length of incoming string, then run realloc_read to read that amount, return false if nothing read
+struct return_info get_message(struct string* message, int socket_fd) //read the first two bytes for length of incoming string, then run realloc_read to read that amount, return false if nothing read
 {
 	struct pollfd socket_ready = { .fd = socket_fd, .events = POLLIN, .revents = 0};
 	struct return_info returning = { .error_occured = false, .error_code = 0, .return_code = false};
@@ -102,9 +102,7 @@ inline struct return_info get_message(struct string* message, int socket_fd) //r
 		}
 
 		if(!IS_BIG_ENDIAN)
-		{
 			swap_endianess_16(&bytes_to_read);
-		}
 
 		if(bytes_to_read == 0)
 		{
@@ -138,7 +136,7 @@ inline struct return_info get_message(struct string* message, int socket_fd) //r
 	return returning;
 }
 
-inline struct return_info realloc_read(struct string* target, unsigned short bytes_to_read, int socket_fd, uint32_t offset)
+struct return_info realloc_read(struct string* target, unsigned short bytes_to_read, int socket_fd, uint32_t offset)
 {
 	//read message into buffer, return true if message continues
 	long bytes_read = 0;
@@ -159,27 +157,23 @@ inline struct return_info realloc_read(struct string* target, unsigned short byt
 	target->data[bytes_read-1] = '\0';  //last char has to be nul anyways
 
 	if(bytes_read > 1)
-	{
 		returning.return_code = target->data[bytes_read-2] == '\0' ? true : false; //if the char one before last is nul, then the message is split
-	}
 
 	return returning;
 }
 
-inline void swap_endianess_16(uint16_t * byte) //swap 16 bytes in endianess
+void swap_endianess_16(uint16_t * byte) //swap 16 bytes in endianess
 {
 	uint16_t swapped = (uint16_t)((*byte>>8) | (*byte<<8));
 	*byte = swapped;
 }
 
-inline void adjust_string_size(struct string* target ,uint32_t size) //resizes a string to fit the size
+void adjust_string_size(struct string* target ,uint32_t size) //resizes a string to fit the size
 {
 	while(target->capacity < size)
 	{
 		if(target->capacity == 0)
-		{
 			target->capacity = 1;
-		}
 		if((uint32_t)(target->capacity * 2) < target->capacity)
 		{
 			target->data = realloc(target->data, INT32_MAX);
@@ -191,7 +185,7 @@ inline void adjust_string_size(struct string* target ,uint32_t size) //resizes a
 	}
 }
 
-inline struct return_info send_string(const struct string* message, int socket_fd) 		//takes message that already has length prefix
+struct return_info send_string(const struct string* message, int socket_fd) 		//takes message that already has length prefix
 {
 	struct return_info returning = { .error_occured = false, .error_code = 0, .return_code = false};
 
@@ -204,15 +198,13 @@ inline struct return_info send_string(const struct string* message, int socket_f
 	return returning;
 }
 
-inline bool valid_message_format(const struct string* message, bool is_extended_format) //checks if message has a valid format TODO: optimize
+bool valid_message_format(const struct string* message, bool is_extended_format) //checks if message has a valid format TODO: optimize
 {
 	bool target_server_found = false;
 	bool target_user_found = false;
 
 	if(message->data[0] == '/')
-	{
 		return true;
-	}
 
 	if(is_extended_format)
 	{
@@ -224,17 +216,13 @@ inline bool valid_message_format(const struct string* message, bool is_extended_
 			if(message->data[i] == '@')
 			{
 				if(!source_server_found)
-				{
 					source_server_found = true;
-				} else if(source_user_found && !target_server_found) {
+				else if(source_user_found && !target_server_found)
 					target_server_found = true;
-				}
 			}
 
 			if(message->data[i] == '>')
-			{
 				timestamp_found = true;
-			}
 
 			if(message->data[i] == ':')
 			{
@@ -247,40 +235,31 @@ inline bool valid_message_format(const struct string* message, bool is_extended_
 				}
 			}
 			if(target_user_found && timestamp_found)
-			{
 				return true;
-			}
 		}
 		return false;
 	} else {
 		for(uint32_t i = 0; i < message->length; i++)
 		{
 			if(message->data[i] == '@' && !target_server_found)
-			{
 				target_server_found = true;
-			}
-
 			if(message->data[i] == ':' && target_server_found && !target_user_found)
-			{
 				target_user_found = true;
-			}
 			if(target_user_found)
-			{
 				return true;
-			}
 		}
 		return false;
 	}
 }
 
-inline void dynamic_array_push(struct dynamic_array* array, void* item) //puts item at end of array
+void dynamic_array_push(struct dynamic_array* array, void* item) //puts item at end of array
 {
 	dynamic_array_adjust(array, array->length+1);
 	array->data[array->length] = item;
 	array->length++;
 }
 
-inline void dynamic_array_adjust(struct dynamic_array* array, size_t size) //expands or shrinks array
+void dynamic_array_adjust(struct dynamic_array* array, size_t size) //expands or shrinks array
 {
 	while(array->capacity < size)
 	{
@@ -294,17 +273,15 @@ inline void dynamic_array_adjust(struct dynamic_array* array, size_t size) //exp
 	}
 }
 
-inline void* dynamic_array_at(const struct dynamic_array* array, size_t position) //returns pointer at position or NULL
+void* dynamic_array_at(const struct dynamic_array* array, size_t position) //returns pointer at position or NULL
 {
 	if(position >= array->length)
-	{
 		return NULL;
-	} else {
+	else
 		return array->data[position];
-	}
 }
 
-inline void dynamic_array_remove(struct dynamic_array* array, size_t position) //removes & frees pointer at position and fill missing spot
+void dynamic_array_remove(struct dynamic_array* array, size_t position) //removes & frees pointer at position and fill missing spot
 {
 	if(position < array->length)
 	{
@@ -314,7 +291,7 @@ inline void dynamic_array_remove(struct dynamic_array* array, size_t position) /
 	}
 }
 
-inline struct dynamic_array* new_dynamic_array(void) //creates new array with inital capacity of 4
+struct dynamic_array* new_dynamic_array(void) //creates new array with inital capacity of 4
 {
 	struct dynamic_array* array = malloc(sizeof(*array));
 	assert(pthread_mutex_init(&array->mutex, NULL) == 0);
@@ -325,14 +302,13 @@ inline struct dynamic_array* new_dynamic_array(void) //creates new array with in
 	return array;
 }
 
-inline void destroy_dynamic_array(struct dynamic_array* array) //frees all pointers in the array and the array itself
+void destroy_dynamic_array(struct dynamic_array* array) //frees all pointers in the array and the array itself
 {
 	if(array != NULL)
 	{
 		for(size_t i = 0; i < array->length; i++)
-		{
 			free(array->data[i]);
-		}
+
 		free(array->data);
 		pthread_mutex_destroy(&array->mutex);
 		free(array);

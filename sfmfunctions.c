@@ -18,7 +18,7 @@ void string_append(struct string* target, char* source)	//appends source to
 void string_copy(struct string* target, struct string* source)	//appends source to
 {
 	memcpy(target, source, sizeof(*target));
-	target->data = malloc(target->length);
+	target->data = malloc(target->capacity);
 	memcpy(target->data, source->data, target->length);
 }
 
@@ -96,9 +96,11 @@ struct return_info get_message(struct string* message, int socket_fd) //read the
 			{
 				returning.error_occured = true;
 				returning.error_code = errno;
+				break;
 			}
 			returning.error_occured = true;
 			returning.error_code = -1; //indicate wrong amount read
+			break;
 		}
 
 		if(!IS_BIG_ENDIAN)

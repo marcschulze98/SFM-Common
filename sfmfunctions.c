@@ -1,3 +1,4 @@
+/// @file
 #include "SFM.h"
 
 
@@ -277,7 +278,7 @@ void dynamic_array_adjust(struct dynamic_array* array, size_t size) //expands or
 
 void* dynamic_array_at(const struct dynamic_array* array, size_t position) //returns pointer at position or NULL
 {
-	if(position >= array->length)
+	if(position >= array->length || position < 0)
 		return NULL;
 	else
 		return array->data[position];
